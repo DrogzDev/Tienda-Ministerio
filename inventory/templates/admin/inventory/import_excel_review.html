@@ -1,0 +1,117 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+
+    <h1>Revisar importación</h1>
+
+    <div class="module" style="padding:16px; margin-bottom:20px;">
+        <p><strong>Archivo:</strong> {{ original_filename }}</p>
+        <p><strong>Sección:</strong> {{ section.name }}</p>
+        <p><strong>Almacén físico:</strong> {{ warehouse.name }}</p>
+        <p><strong>Hoja:</strong> {{ analysis.sheet }}</p>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+        <div class="module" style="padding:12px 18px;"><strong>Total:</strong> {{ analysis.summary.total_rows }}</div>
+        <div class="module" style="padding:12px 18px;"><strong>Nuevos:</strong> {{ analysis.summary.ready_new }}</div>
+        <div class="module" style="padding:12px 18px;"><strong>Existentes:</strong> {{ analysis.summary.ready_existing }}</div>
+        <div class="module" style="padding:12px 18px;"><strong>Revisión:</strong> {{ analysis.summary.review }}</div>
+        <div class="module" style="padding:12px 18px;"><strong>Errores:</strong> {{ analysis.summary.errors }}</div>
+    </div>
+
+    {% if not analysis.can_import_without_review %}
+        <div class="messagelist">
+            <div class="warning" style="padding:12px; margin-bottom:18px;">
+                Hay filas que necesitan revisión. El inventario todavía no ha sido modificado.
+                Corrige las categorías/unidades/productos indicados o modifica el Excel y vuelve a analizarlo.
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="results" style="overflow:auto; max-width:100%;">
+        <table id="result_list">
+            <thead>
+                <tr>
+                    <th>Fila</th>
+                    <th>Estado</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Categoría</th>
+                    <th>Unidad Excel</th>
+                    <th>Cantidad</th>
+                    <th>Producto relacionado</th>
+                    <th>Stock actual</th>
+                    <th>Stock después</th>
+                    <th>Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in analysis.rows %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ row.row_number }}</td>
+                    <td>
+                        {% if row.status == "READY_NEW" %}
+                            <strong style="color:#198754;">NUEVO</strong>
+                        {% elif row.status == "READY_EXISTING" %}
+                            <strong style="color:#0b57d0;">EXISTENTE</strong>
+                        {% elif row.status == "REVIEW" %}
+                            <strong style="color:#b58105;">REVISAR</strong>
+                        {% else %}
+                            <strong style="color:#ba2121;">ERROR</strong>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.code|default:"—" }}</td>
+                    <td>{{ row.description }}</td>
+                    <td>{{ row.category_raw }}</td>
+                    <td>{{ row.unit_raw }}</td>
+                    <td>{{ row.quantity }}</td>
+                    <td>
+                        {% if row.matched_product_code %}
+                            {{ row.matched_product_code }} — {{ row.system_description }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>{{ row.current_stock }} {{ row.system_unit }}</td>
+                    <td><strong>{{ row.resulting_stock }} {{ row.system_unit }}</strong></td>
+                    <td>
+                        {% for warning in row.warnings %}
+                            <div style="color:#8a6d00; margin-bottom:4px;">⚠ {{ warning }}</div>
+                        {% endfor %}
+                        {% for error in row.errors %}
+                            <div style="color:#ba2121; margin-bottom:4px;">✕ {{ error }}</div>
+                        {% endfor %}
+                        {% if not row.warnings and not row.errors %}
+                            <span style="color:#198754;">✓ Lista</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="11">No se encontraron filas para importar.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="submit-row" style="margin-top:20px;">
+        {% if analysis.can_import_without_review and analysis.summary.total_rows > 0 %}
+            <form method="post" action="{{ confirm_url }}" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="temp_file_name" value="{{ temp_file_name }}">
+                <input type="hidden" name="original_filename" value="{{ original_filename }}">
+                <input type="hidden" name="section_id" value="{{ section.id }}">
+                <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
+                <input type="submit" value="Confirmar importación" class="default"
+                       onclick="return confirm('¿Confirmar esta importación? Se crearán movimientos de inventario.');">
+            </form>
+        {% endif %}
+
+        <a href="{{ upload_url }}" class="button">
+            Cargar otro archivo
+        </a>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module aligned">
+        <h2>Importar inventario desde Excel</h2>
+
+        <p style="max-width:900px;">
+            Selecciona la sección, el almacén físico y el archivo Excel.
+            Primero se analizará el archivo. <strong>No se modificará el inventario</strong>
+            hasta que revises la previsualización y confirmes la carga.
+        </p>
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                {{ form.non_field_errors }}
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-row" style="margin-bottom:18px;">
+                    {{ field.errors }}
+                    <div>
+                        <label style="font-weight:600; display:block; margin-bottom:6px;">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+                    </div>
+                    {% if field.help_text %}
+                        <div class="help">{{ field.help_text }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div class="submit-row">
+                <input type="submit" value="Analizar archivo" class="default">
+                <a href="{% url 'admin:inventory_inventoryimportbatch_changelist' %}"
+                   class="button cancel-link">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
